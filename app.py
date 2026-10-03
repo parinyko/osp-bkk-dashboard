@@ -1,11 +1,14 @@
 from flask import Flask, render_template, request, redirect, jsonify
 import pandas as pd
 import os
+import re
 import json
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from collections import Counter
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret-key")
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -13,7 +16,17 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 DATA = []
 RAW_DATA = []
 LAST_UPDATE = "-"
+
 TOTAL_JOBS = 0
+TOTAL_CRITICAL = 0
+TOTAL_MAJOR = 0
+TOTAL_MINOR = 0
+
+TOTAL_SCT = 0
+TOTAL_CWT = 0
+TOTAL_ONT = 0
+TOTAL_TLC = 0
+
 REMARKS = {}
 REMARK_FILE = "remarks.json"
 
@@ -165,353 +178,754 @@ TEAM_DATA = [
     {"zone": "AIS", "user": "Nares Vongkasigum"},
 ]
 
+# Teams shown/managed on the BKK dashboard. These legacy groups are intentionally excluded.
+DASHBOARD_EXCLUDED_ZONES = {"BKK2", "SPK", "NTB", "AIS"}
+
+def dashboard_teams():
+    return [team for team in TEAM_DATA if team.get("zone") not in DASHBOARD_EXCLUDED_ZONES]
+
+
+AREA_DATA = {
+
+    "Dmplocallatkrabang A": "หนองจอก มีนบุรี คลองสามวา คันนายาว  บึงกุ่ม",
+    "Dmplocallatkrabang B": "สวนหลวง ลาดกระบัง บางกะปิ ",
+    "Dmplocallatkrabang C": "สะพานสูง ประเวศ บางนา",
+
+    "Dmplocalpathumthani A": "เมืองปทุมธานี สามโคก ลาดหลุมแก้ว",
+    "Dmplocalpathumthani B": "คลองหลวง หนองเสือ",
+    "Dmplocalpathumthani C": "ลำลูกกา ธัญบุรี",
+
+    "Originlocal Center": "",
+    "Originlocalthungkhru A": "บางขุนเทียน ราษฎร์บูรณะ จอมทอง ",
+    "Originlocalthungkhru B": "ทุ่งครุ บางบอน ทวีวัฒนา",
+    "Originlocalthungkhru C": "หนองแขม บางแค ภาษีเจริญ",
+
+    "Originlocalnonthaburi A": "บางใหญ่ บางบัวทอง ไทรน้อย เมืองนนทบุรี ปากเกร็ด",
+    "Originlocalnonthaburi B": "บางใหญ่ บางบัวทอง ไทรน้อย เมืองนนทบุรี ปากเกร็ด",
+    "Originlocalnonthaburi C": "บางใหญ่ บางบัวทอง ไทรน้อย เมืองนนทบุรี ปากเกร็ด",
+
+    "Exsct A": "ลาดพร้าว จตุจักร บางซื่อ วังทองหลาง ห้วยขวาง ดินแดง พญาไท",
+    "Exsct B": "ดุสิต ราชเทวี วัฒนา คลองเตย ปทุมวัน ป้อมปราบศัตรูพ่าย พระนคร สัมพันธวงศ์",
+    "Exsct C": "บางรัก สาธร ยานนาวา บางคอแหลม คลองเตย",
+    "Extrsct E": "Around the zone (Night)",
+
+    "Exbpl A": "สะพานสูง มีนบุรี หนองจอก ลาดกระบัง รามคำแหง",
+    "Exbpl B": "บางพลี(ตอนล่าง) บางเสาธง(ตอนล่าง) บางบ่อ(ตอนล่าง)",
+    "Exbpl C": "บางพลี(ตอนบน) บางเสาธง(ตอนบน) บางบ่อ(ตอนบน)",
+    "Exbpl D": "บางนา พระประแดง เมืองสมุทรปราการ",
+    "Exbpl E": "Around the zone (Night)",
+    "Extrbpl F": "คลองเตย พระโขนง สวนหลวง ประเวศ",
+    "Extrbpl G": "บางกะปิ วังทองหลาง ห้วยขวาง วัฒนา",
+
+    "Extlc A": "บางขุนเทียน พระสมุทรเจดีย์ พระประแดง ทุ่งครุ ราษฎร์บูรณะ จอมทอง บางบอน",
+    "Extlc B": "บางพลัด บางกรวย บางใหญ่ เมืองนนทบุรี (Zone TLC)",
+    "Extlc C": "ปากเกร็ด บางบัวทอง ไทรน้อย(ตอนล่าง) ไทรน้อย(ตอนบน)",
+    "Extlc D": "Around the zone (Night)",
+    "Extlc E": "หนองแขม บางแค ภาษีเจริญ ธนบุรี คลองสาน บางกอกใหญ่ บางกอกน้อย ตลิ่งชัน ทวีวัฒนา",
+    "Extrtlc F": "Around the zone (Night)",
+
+    "Excwt A": "Around the zone (Night)",
+    "Excwt B": "สามโคก(ฝั่งตะวันออก) เมืองปทุมธานี(ฝั่งตะวันออก) ธัญบุรี(คลอง1-7) คลองหลวง(คลอง1-7)",
+    "Excwt C": "ลำลูกกา หนองจอก คลองสามวา มีนบุรี รามอินทรา",
+    "Excwt D": "ธัญบุรี(คลอง7 เป็นต้นไป) คลองหลวง(คลอง7 เป็นต้นไป) หนองเสือ",
+    "Excwt E": "บางซื่อ หลักสี่ เมืองนนทบุรี ปากเกร็ด ดอนเมือง",
+    "Extrcwt F": "เมืองปทุม(ฝั่งตะวันตก) สามโคก(ฝั่งตะวันตก) ลาดหลุมแก้ว",
+    "Extrcwt G": "Around the zone (Night)",
+    "Extrcwt H": "คันนายาว บึงกุ่ม ลาดพร้าว บางเขน สายไหม จตุจักร",
+
+    "Exeds A": "All Zone (เน้น RRU กับงานภายในห้าง ทุกโซน)",
+    "Exeds B": "All Zone",
+
+    "Exspare A": "ปากเกร็ด บางบัวทอง ไทรน้อย"
+}
 
 def get_status_color(status_text):
-
     status_text = str(status_text).strip().lower()
-
-    if status_text == "":
+    if not status_text:
         return "#ffffff"
-
-    # 1. Onsite
-    elif "on-site" in status_text or "onsite" in status_text:
+    if "on-site" in status_text or "onsite" in status_text:
         return "#c6efce"
-
-    # 2. Departed
-    elif "departed" in status_text:
+    if "departed" in status_text:
         return "#ffe699"
-
-    # 3. Assigned / Accepted
-    elif "assigned" in status_text or "accepted" in status_text:
+    if "assigned" in status_text or "accepted" in status_text:
         return "#ffc7ce"
-
-    # 4. Held
-    elif "held" in status_text:
+    if "held" in status_text:
         return "#9fd5ff"
-
     return "#ffffff"
+
+
+# -----------------------------------------------------------------------------
+# Persistent team information
+# -----------------------------------------------------------------------------
+from io import BytesIO
+from threading import Lock, RLock, Thread, Event
+from werkzeug.utils import secure_filename
+from flask import flash, send_file
+
+CONTACTS = {}
+CONTACT_FILE = "contacts.json"
+REMARK_LOCK = Lock()
+CONTACT_LOCK = Lock()
+OSP_LOCK = RLock()
+DAILY_OSP_FILE = "daily_osp_remain.json"
+DAILY_OSP_MAX_RECORDS = 730
+DAILY_OSP_STOP = Event()
+
+
+def load_json_file(path, default=None):
+    default = {} if default is None else default
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data if isinstance(data, dict) else default
+    except (OSError, json.JSONDecodeError):
+        pass
+    return default.copy() if isinstance(default, dict) else default
+
+
+REMARKS = load_json_file(REMARK_FILE, {})
+CONTACTS = load_json_file(CONTACT_FILE, {})
+
+
+def clean_text(value):
+    return str(value or "").strip()
+
+
+def atomic_save_json(path, data, lock):
+    temp_path = f"{path}.tmp"
+    with lock:
+        with open(temp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_path, path)
+
+
+def get_request_value(name):
+    if request.is_json:
+        payload = request.get_json(silent=True) or {}
+        return payload.get(name, "")
+    return request.form.get(name, "")
 
 
 @app.route("/save_remark", methods=["POST"])
 def save_remark():
-
     global REMARKS
-
-    user = request.form.get("user", "")
-    remark = request.form.get("remark", "")
-
-    print("SAVE:", user, "=>", remark)
+    user = clean_text(get_request_value("user"))
+    remark = clean_text(get_request_value("remark"))
+    if not user:
+        return jsonify({"success": False, "message": "ไม่พบ User"}), 400
 
     REMARKS[user] = remark
+    atomic_save_json(REMARK_FILE, REMARKS, REMARK_LOCK)
+    return jsonify({"success": True, "user": user, "remark": remark})
 
-    with open(REMARK_FILE, "w", encoding="utf-8") as f:
-        json.dump(
-            REMARKS,
-            f,
-            ensure_ascii=False,
-            indent=4
-        )
 
-    return jsonify({"success": True})
+@app.route("/save_contact", methods=["POST"])
+def save_contact():
+    global CONTACTS
+    user = clean_text(get_request_value("user"))
+    contact = clean_text(get_request_value("contact"))
+    if not user:
+        return jsonify({"success": False, "message": "ไม่พบ User"}), 400
 
-@app.route("/", methods=["GET", "POST"])
-def index():
-    global DATA
-    global RAW_DATA
-    global LAST_UPDATE
-    global TOTAL_JOBS
+    CONTACTS[user] = contact
+    atomic_save_json(CONTACT_FILE, CONTACTS, CONTACT_LOCK)
+    return jsonify({"success": True, "user": user, "contact": contact})
 
-    if request.method == "POST":
 
-        file = request.files.get("file")
+def normalize_status_series(df):
+    return df["Status"].fillna("").astype(str).str.strip().str.lower()
 
-        if file and file.filename:
 
-            filepath = os.path.join(
-                UPLOAD_FOLDER,
-                file.filename
-            )
+def normalize_priority_series(df):
+    return df["Priority"].fillna("").astype(str).str.strip().str.lower()
 
-            file.save(filepath)
 
-            df = pd.read_excel(filepath)
+def prepare_job_dataframe(df):
+    required = ["Sub System", "Status", "Priority", "Assign to"]
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        raise ValueError("ไม่พบคอลัมน์ที่จำเป็น: " + ", ".join(missing))
 
-            job_monitor_df = df[
-                df["Sub System"]
-                .fillna("")
-                .astype(str)
-                .str.strip()
-                .isin(VALID_SUBSYSTEMS)
-            ]
+    subsystem = df["Sub System"].fillna("").astype(str).str.strip()
+    status = normalize_status_series(df)
+    priority = normalize_priority_series(df)
 
-            job_monitor_df = job_monitor_df[
-                ~job_monitor_df["Status"]
-                .fillna("")
-                .astype(str)
-                .str.lower()
-                .str.contains(
-                    "done(not leave)",
-                    regex=False
-                )
-            ]
+    filtered = df[subsystem.isin(VALID_SUBSYSTEMS)].copy()
+    status_f = normalize_status_series(filtered)
+    priority_f = normalize_priority_series(filtered)
+    filtered = filtered[~status_f.str.contains("done(not leave)", regex=False)]
+    filtered = filtered[priority_f.ne("") & priority_f.ne("none")].copy()
 
-            job_monitor_df = job_monitor_df[
-                job_monitor_df["Priority"]
-                .fillna("")
-                .astype(str)
-                .str.strip()
-                .ne("")
-            ]
-
-            job_monitor_df = job_monitor_df[
-                job_monitor_df["Priority"]
-                .astype(str)
-                .str.strip()
-                .str.lower()
-                .ne("none")
-            ]
-            order_map = {
-                name: idx
-                for idx, name in enumerate(ASSIGN_ORDER)
-            }
-
-            order_map["Workforce BKK Pool"] = 999999
-
-            job_monitor_df["_sort_order"] = (
-                job_monitor_df["Assign to"]
-                .fillna("")
-                .astype(str)
-                .map(order_map)
-                .fillna(9999)
-            )
-
-            job_monitor_df = job_monitor_df.sort_values(
-                by=["_sort_order", "Assign to"]
-            )
-
-            RAW_DATA = (
-                job_monitor_df
-                .drop(columns=["_sort_order"])
-                .fillna("")
-                .to_dict("records")
-            )
-
-            if "Sub System" in df.columns:
-
-                total_df = df[
-                    df["Sub System"]
-                    .fillna("")
-                    .astype(str)
-                    .str.strip()
-                    .isin(VALID_SUBSYSTEMS)
-                ]
-
-                total_df = total_df[
-                    ~total_df["Status"]
-                    .fillna("")
-                    .astype(str)
-                    .str.lower()
-                    .str.contains(
-                        "done(not leave)",
-                        regex=False
-                    )
-                ]
-
-                # ไม่นับ Priority ว่าง
-                total_df = total_df[
-                    total_df["Priority"]
-                    .fillna("")
-                    .astype(str)
-                    .str.strip()
-                    .ne("")
-                ]
-
-                # ไม่นับ Priority = None
-                total_df = total_df[
-                    total_df["Priority"]
-                    .fillna("")
-                    .astype(str)
-                    .str.strip()
-                    .str.lower()
-                    .ne("none")
-                ]
-
-                TOTAL_JOBS = len(total_df)
-
-            else:
-
-                TOTAL_JOBS = len(df)
-
-            result = []
-
-            if "Assign to" not in df.columns:
-                return "ไม่พบคอลัมน์ Assign to"
-
-            for team in TEAM_DATA:
-
-                zone = team["zone"]
-                user = team["user"]
-
-                user_jobs = df[
-                    (
-                        df["Assign to"]
-                        .fillna("")
-                        .astype(str)
-                        .str.strip()
-                        .str.lower()
-                        ==
-                        user.strip().lower()
-                    )
-                    &
-                    (
-                        ~df["Status"]
-                        .fillna("")
-                        .astype(str)
-                        .str.lower()
-                        .str.contains(
-                            "done(not leave)",
-                            regex=False
-                        )
-                    )
-                ]
-
-                job_count = len(user_jobs)
-
-                if job_count > 0:
-                    work_status = "Working"
-                else:
-                    work_status = "ว่าง"
-
-                status_list = []
-
-                if "Status" in df.columns:
-
-                    for _, row in user_jobs.iterrows():
-
-                        st = str(
-                            row.get("Status", "")
-                        ).strip()
-
-                        if (
-                            st and
-                            st.lower() != "done(not leave)"
-                        ):
-                            status_list.append(st)
-
-                status_text = ", ".join(
-                    sorted(set(status_list))
-                )
-
-                result.append({
-                    "zone": zone,
-                    "user": user,
-                    "work_status": work_status,
-                    "job_count": job_count,
-                    "status_text": status_text,
-                    "status_color": get_status_color(
-                        status_text
-                    ),
-                    "remark": REMARKS.get(
-                        user,
-                        ""
-                    )
-                })
-
-            DATA = result
-
-            LAST_UPDATE = datetime.now().strftime(
-                "%d/%m/%Y %H:%M:%S"
-            )
-
-        return redirect("/")
-
-    zone_counts = Counter(
-        [row["zone"] for row in DATA]
+    order_map = {name: idx for idx, name in enumerate(ASSIGN_ORDER)}
+    order_map["Workforce BKK Pool"] = 999999
+    filtered["_sort_order"] = (
+        filtered["Assign to"].fillna("").astype(str).str.strip().map(order_map).fillna(9999)
     )
+    filtered = filtered.sort_values(by=["_sort_order", "Assign to"], kind="stable")
+    return filtered.drop(columns=["_sort_order"])
 
-    shown_zone = set()
 
-    for row in DATA:
+def calculate_totals(job_df):
+    priority = normalize_priority_series(job_df)
+    zone = job_df["Zone"].fillna("").astype(str) if "Zone" in job_df.columns else pd.Series("", index=job_df.index)
+    return {
+        "critical": int((priority == "critical").sum()),
+        "major": int((priority == "major").sum()),
+        "minor": int((priority == "minor").sum()),
+        "jobs": int(len(job_df)),
+        "sct": int(zone.str.contains("Bangkok-ST2", case=False, na=False).sum()),
+        "cwt": int(zone.str.contains("Bangkok-CWT", case=False, na=False).sum()),
+        "ont": int(zone.str.contains("Bangkok-ONT", case=False, na=False).sum()),
+        "tlc": int(zone.str.contains("Bangkok-TLC", case=False, na=False).sum()),
+    }
 
-        if row["zone"] not in shown_zone:
 
+def build_dashboard_data(df):
+    result = []
+    status_series = normalize_status_series(df)
+    priority_series = normalize_priority_series(df)
+
+    for team in dashboard_teams():
+        zone = team["zone"]
+        user = team["user"]
+        assign_series = df["Assign to"].fillna("").astype(str).str.strip().str.casefold()
+        mask = assign_series.eq(user.strip().casefold())
+        mask &= ~status_series.str.contains("done(not leave)", regex=False)
+        mask &= priority_series.ne("") & priority_series.ne("none")
+        mask &= df["Sub System"].fillna("").astype(str).str.strip().isin(VALID_SUBSYSTEMS)
+        user_jobs = df.loc[mask]
+
+        statuses = []
+        if "Status" in user_jobs.columns:
+            statuses = [clean_text(v) for v in user_jobs["Status"].tolist() if clean_text(v)]
+        status_text = ", ".join(sorted(set(statuses), key=str.casefold))
+
+        result.append({
+            "zone": zone,
+            "user": user,
+            "area": AREA_DATA.get(user, ""),
+            "work_status": "Working" if len(user_jobs) else "ว่าง",
+            "job_count": int(len(user_jobs)),
+            "status_text": status_text,
+            "status_color": get_status_color(status_text),
+            "contact": CONTACTS.get(user, ""),
+            "remark": REMARKS.get(user, ""),
+        })
+    return result
+
+
+def apply_group_rowspans(rows):
+    zone_counts = Counter(row["zone"] for row in rows)
+    shown = set()
+    for row in rows:
+        if row["zone"] not in shown:
             row["show_zone"] = True
-            row["rowspan"] = zone_counts[
-                row["zone"]
-            ]
-
-            shown_zone.add(
-                row["zone"]
-            )
-
+            row["rowspan"] = zone_counts[row["zone"]]
+            shown.add(row["zone"])
         else:
-
             row["show_zone"] = False
             row["rowspan"] = 0
+    return rows
 
-    display_data = DATA
 
-    if len(display_data) == 0:
+def update_global_data(df):
+    global DATA, RAW_DATA, LAST_UPDATE
+    global TOTAL_CRITICAL, TOTAL_MAJOR, TOTAL_MINOR, TOTAL_JOBS
+    global TOTAL_SCT, TOTAL_CWT, TOTAL_ONT, TOTAL_TLC
 
-        display_data = []
+    job_df = prepare_job_dataframe(df)
+    RAW_DATA = job_df.fillna("").to_dict("records")
+    totals = calculate_totals(job_df)
+    TOTAL_CRITICAL = totals["critical"]
+    TOTAL_MAJOR = totals["major"]
+    TOTAL_MINOR = totals["minor"]
+    TOTAL_JOBS = totals["jobs"]
+    TOTAL_SCT = totals["sct"]
+    TOTAL_CWT = totals["cwt"]
+    TOTAL_ONT = totals["ont"]
+    TOTAL_TLC = totals["tlc"]
 
-        zone_counts = Counter(
-            [x["zone"] for x in TEAM_DATA]
-        )
+    DATA = build_dashboard_data(df)
+    LAST_UPDATE = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%d/%m/%Y %H:%M:%S")
 
-        shown = set()
 
-        for team in TEAM_DATA:
+def empty_dashboard_data():
+    rows = []
+    for team in dashboard_teams():
+        rows.append({
+            "zone": team["zone"],
+            "user": team["user"],
+            "area": AREA_DATA.get(team["user"], ""),
+            "work_status": "ว่าง",
+            "job_count": 0,
+            "status_text": "",
+            "status_color": "#ffffff",
+            "contact": CONTACTS.get(team["user"], ""),
+            "remark": REMARKS.get(team["user"], ""),
+        })
+    return apply_group_rowspans(rows)
 
-            zone = team["zone"]
 
-            if zone not in shown:
+# -----------------------------------------------------------------------------
+# Daily Job OSP Remain
+# -----------------------------------------------------------------------------
+DAILY_OSP_SUBSYSTEMS = [
+    "EDS-OSP",
+    "ETS-OSP",
+    "FTTB-OSP",
+    "FTTH-OSP",
+    "FTTX-OSP",
+    "Splitter-OSP",
+    "Transmission-OSP",
+    "EDS SW NODE-OSP",
+    "EDS IPLC-OSP",
+]
 
-                show_zone = True
-                rowspan = zone_counts[zone]
-                shown.add(zone)
 
+def load_daily_osp_history():
+    try:
+        if not os.path.exists(DAILY_OSP_FILE):
+            return []
+        with open(DAILY_OSP_FILE, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+        if isinstance(payload, dict):
+            records = payload.get("records", [])
+        else:
+            records = payload
+        return records if isinstance(records, list) else []
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+DAILY_OSP_HISTORY = load_daily_osp_history()
+
+
+def save_daily_osp_history():
+    payload = {
+        "version": 1,
+        "updated_at": datetime.now(ZoneInfo("Asia/Bangkok")).isoformat(),
+        "records": DAILY_OSP_HISTORY[-DAILY_OSP_MAX_RECORDS:],
+    }
+    temp_path = f"{DAILY_OSP_FILE}.tmp"
+    with OSP_LOCK:
+        with open(temp_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_path, DAILY_OSP_FILE)
+
+
+def get_latest_upload_path():
+    candidates = []
+    try:
+        for name in os.listdir(UPLOAD_FOLDER):
+            if name.lower().endswith((".xlsx", ".xls")):
+                path = os.path.join(UPLOAD_FOLDER, name)
+                if os.path.isfile(path):
+                    candidates.append(path)
+    except OSError:
+        return None
+    return max(candidates, key=os.path.getmtime) if candidates else None
+
+
+def load_latest_excel_into_memory():
+    path = get_latest_upload_path()
+    if not path:
+        return False
+    try:
+        df = pd.read_excel(path)
+        update_global_data(df)
+        return True
+    except Exception:
+        return False
+
+
+def build_daily_osp_snapshot(slot="Manual"):
+    """Create one OSP remain snapshot from the currently loaded job data."""
+    if not RAW_DATA:
+        load_latest_excel_into_memory()
+    if not RAW_DATA:
+        raise ValueError("ยังไม่มีข้อมูล Job สำหรับสร้าง Daily Job OSP Remain")
+
+    now = datetime.now(ZoneInfo("Asia/Bangkok"))
+    job_df = pd.DataFrame(RAW_DATA)
+    subsystem_series = job_df["Sub System"].fillna("").astype(str).str.strip()
+    priority_series = normalize_priority_series(job_df)
+
+    rows = []
+    for subsystem in DAILY_OSP_SUBSYSTEMS:
+        mask = subsystem_series.eq(subsystem)
+        rows.append({
+            "subsystem": subsystem,
+            "critical": int((mask & priority_series.eq("critical")).sum()),
+            "major": int((mask & priority_series.eq("major")).sum()),
+            "minor": int((mask & priority_series.eq("minor")).sum()),
+            "total": int(mask.sum()),
+        })
+
+    total_critical = sum(r["critical"] for r in rows)
+    total_major = sum(r["major"] for r in rows)
+    total_minor = sum(r["minor"] for r in rows)
+    grand_total = sum(r["total"] for r in rows)
+
+    return {
+        "timestamp": now.strftime("%d/%m/%Y %H:%M:%S"),
+        "iso_timestamp": now.isoformat(),
+        "date": now.strftime("%Y-%m-%d"),
+        "slot": slot,
+        "last_update": LAST_UPDATE,
+        "totals": {
+            "critical": total_critical,
+            "major": total_major,
+            "minor": total_minor,
+            "grand_total": grand_total,
+        },
+        "subsystems": rows,
+    }
+
+
+def snapshot_key(record):
+    return f"{record.get('date','')}|{record.get('slot','')}"
+
+
+def save_daily_osp_snapshot(slot="Manual", allow_duplicate=False):
+    global DAILY_OSP_HISTORY
+    record = build_daily_osp_snapshot(slot)
+    key = snapshot_key(record)
+
+    with OSP_LOCK:
+        if not allow_duplicate and slot in ("06:00", "18:00"):
+            for old in DAILY_OSP_HISTORY:
+                if snapshot_key(old) == key:
+                    return old, False
+        DAILY_OSP_HISTORY.append(record)
+        DAILY_OSP_HISTORY = DAILY_OSP_HISTORY[-DAILY_OSP_MAX_RECORDS:]
+        save_daily_osp_history()
+    return record, True
+
+
+def scheduled_osp_slot(now):
+    if now.hour == 6 and now.minute == 0:
+        return "06:00"
+    if now.hour == 18 and now.minute == 0:
+        return "18:00"
+    return None
+
+
+def daily_osp_scheduler():
+    last_checked_minute = None
+    while not DAILY_OSP_STOP.wait(15):
+        now = datetime.now(ZoneInfo("Asia/Bangkok"))
+        minute_key = now.strftime("%Y-%m-%d %H:%M")
+        if minute_key == last_checked_minute:
+            continue
+        last_checked_minute = minute_key
+        slot = scheduled_osp_slot(now)
+        if not slot:
+            continue
+        try:
+            save_daily_osp_snapshot(slot)
+        except Exception as exc:
+            print(f"[Daily OSP] snapshot failed: {exc}")
+
+
+@app.route("/daily_osp_remain")
+def daily_osp_remain():
+    if not RAW_DATA:
+        load_latest_excel_into_memory()
+
+    records = list(reversed(DAILY_OSP_HISTORY))
+    latest = records[0] if records else None
+    return render_template(
+        "daily_osp_remain.html",
+        records=records,
+        latest=latest,
+        subsystem_names=DAILY_OSP_SUBSYSTEMS,
+        current_jobs=TOTAL_JOBS,
+        last_update=LAST_UPDATE,
+    )
+
+
+@app.route("/daily_osp_snapshot", methods=["POST"])
+def daily_osp_snapshot():
+    try:
+        record, created = save_daily_osp_snapshot("Manual", allow_duplicate=True)
+        return jsonify({
+            "success": True,
+            "created": created,
+            "message": "บันทึก Snapshot สำเร็จ",
+            "record": record,
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+
+
+@app.route("/export_excel")
+def export_excel():
+    if not RAW_DATA:
+        return "ยังไม่มีข้อมูล Job สำหรับ Export กรุณา Upload Excel ก่อน", 400
+
+    df = pd.DataFrame(RAW_DATA)
+    df.insert(0, "Remark", [REMARKS.get(clean_text(u), "") for u in df.get("Assign to", "")])
+    df.insert(0, "Contact", [CONTACTS.get(clean_text(u), "") for u in df.get("Assign to", "")])
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Job Monitor")
+        ws = writer.book["Job Monitor"]
+        ws.freeze_panes = "A2"
+        ws.auto_filter.ref = ws.dimensions
+        for column_cells in ws.columns:
+            max_len = max(len(str(cell.value or "")) for cell in column_cells)
+            ws.column_dimensions[column_cells[0].column_letter].width = min(max(max_len + 2, 10), 45)
+
+    output.seek(0)
+    filename = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("job_monitor_%Y%m%d_%H%M%S.xlsx")
+    return send_file(output, as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.route("/export_dashboard_excel")
+def export_dashboard_excel():
+    rows = DATA if DATA else empty_dashboard_data()
+    df = pd.DataFrame([
+        {
+            "Zone": r["zone"],
+            "User": r["user"],
+            "Contact": r.get("contact", ""),
+            "Area": r.get("area", ""),
+            "Work Status": r.get("work_status", ""),
+            "Job Count": r.get("job_count", 0),
+            "Status": r.get("status_text", ""),
+            "Remark": r.get("remark", ""),
+        }
+        for r in rows
+    ])
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Dashboard")
+        ws = writer.book["Dashboard"]
+        ws.freeze_panes = "A2"
+        ws.auto_filter.ref = ws.dimensions
+        for column_cells in ws.columns:
+            max_len = max(len(str(cell.value or "")) for cell in column_cells)
+            ws.column_dimensions[column_cells[0].column_letter].width = min(max(max_len + 2, 10), 45)
+
+    output.seek(0)
+    filename = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("dashboard_%Y%m%d_%H%M%S.xlsx")
+    return send_file(output, as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+
+def parse_available_on(remark, now=None):
+    """Return the datetime when a team becomes available from Remark.
+
+    Supported examples:
+      - Available on 22:00
+      - Available on 22.00
+      - Available on 03/10/2026 22:00
+      - Available on 03-10-2026 22:00
+      - Available on 03/10/26 22:00
+
+    If no date is supplied, today's date in Asia/Bangkok is used.
+    Returns None when the remark does not contain a usable Available on time.
+    """
+    text = clean_text(remark)
+    if not text:
+        return None
+
+    now = now or datetime.now(ZoneInfo("Asia/Bangkok"))
+
+    m = re.search(
+        r"available\s+on\s+"
+        r"(?:(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\s+)?"
+        r"(\d{1,2})[:.](\d{2})",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not m:
+        return None
+
+    day, month, year, hour, minute = m.groups()
+    hour = int(hour)
+    minute = int(minute)
+    if hour > 23 or minute > 59:
+        return None
+
+    if day and month and year:
+        year = int(year)
+        if year < 100:
+            year += 2000
+        try:
+            return datetime(
+                year, int(month), int(day), hour, minute,
+                tzinfo=ZoneInfo("Asia/Bangkok")
+            )
+        except ValueError:
+            return None
+
+    return datetime(
+        now.year, now.month, now.day, hour, minute,
+        tzinfo=ZoneInfo("Asia/Bangkok")
+    )
+
+
+def build_home_summary():
+    """Build the summary tables/cards used by Dashboard OSP BKK."""
+    job_df = pd.DataFrame(RAW_DATA) if RAW_DATA else pd.DataFrame()
+    priority_names = ["Critical", "Major", "Minor"]
+
+    subsystem_summary = []
+    if not job_df.empty and "Sub System" in job_df.columns:
+        subsystem_series = job_df["Sub System"].fillna("").astype(str).str.strip()
+        priority_series = normalize_priority_series(job_df)
+        for subsystem in VALID_SUBSYSTEMS:
+            counts = {name: int(((subsystem_series.eq(subsystem)) & (priority_series.eq(name.lower()))).sum()) for name in priority_names}
+            counts["total"] = sum(counts.values())
+            subsystem_summary.append({"subsystem": subsystem, **{k.lower(): v for k, v in counts.items()}})
+    else:
+        subsystem_summary = [{"subsystem": name, "critical": 0, "major": 0, "minor": 0, "total": 0} for name in VALID_SUBSYSTEMS]
+
+    # Keep the same Zone definitions already used by Job Monitor totals.
+    zone_rules = [
+        ("SCT", "Bangkok-ST2"),
+        ("CWT", "Bangkok-CWT"),
+        ("ONT", "Bangkok-ONT"),
+        ("TLC", "Bangkok-TLC"),
+    ]
+    zone_summary = []
+    if not job_df.empty and "Zone" in job_df.columns:
+        zone_series = job_df["Zone"].fillna("").astype(str)
+        for name, token in zone_rules:
+            zone_summary.append({"zone": name, "jobs": int(zone_series.str.contains(token, case=False, na=False).sum())})
+    else:
+        zone_summary = [{"zone": name, "jobs": 0} for name, _ in zone_rules]
+    zone_summary.append({"zone": "Total", "jobs": sum(x["jobs"] for x in zone_summary)})
+
+    team_rows = build_dashboard_data(job_df) if not job_df.empty else empty_dashboard_data()
+    missing_keywords = ("ลา", "ไม่มีทีม", "รถเสีย")
+    working = free = missing = late = 0
+    team_status_rows = []
+    now = datetime.now(ZoneInfo("Asia/Bangkok"))
+
+    for row in team_rows:
+        remark = clean_text(row.get("remark", ""))
+        remark_cf = remark.casefold()
+
+        # "ลา / ไม่มีทีม / รถเสีย" always wins over other states.
+        if any(word in remark_cf for word in missing_keywords):
+            status = "ทีมขาด"
+            missing += 1
+        else:
+            available_at = parse_available_on(remark, now)
+            if available_at is not None and available_at > now:
+                status = "ทีมเลิกดึก"
+                late += 1
+            elif row.get("work_status") == "Working":
+                status = "Working"
+                working += 1
             else:
+                status = "ว่าง"
+                free += 1
 
-                show_zone = False
-                rowspan = 0
+        team_status_rows.append({
+            "zone": row.get("zone", ""),
+            "user": row.get("user", ""),
+            "status": status,
+        })
 
-            display_data.append({
-                "zone": zone,
-                "user": team["user"],
-                "work_status": "ว่าง",
-                "job_count": 0,
-                "status_text": "",
-                "status_color": "#ffffff",
-                "remark": REMARKS.get(
-                    team["user"],
-                    ""
-                ),
-                "show_zone": show_zone,
-                "rowspan": rowspan
-            })
+    total_teams = len(team_status_rows)
+    return {
+        "subsystem_summary": subsystem_summary,
+        "zone_summary": zone_summary,
+        "team_summary": {
+            "working": working,
+            "free": free,
+            "missing": missing,
+            "late": late,
+            "ready": working + free,
+            "total": total_teams,
+        },
+    }
 
+
+@app.route("/", methods=["GET"])
+def index():
+    latest_osp = DAILY_OSP_HISTORY[-1] if DAILY_OSP_HISTORY else None
+    summary = build_home_summary()
+    return render_template(
+        "home.html",
+        total_jobs=TOTAL_JOBS,
+        total_critical=TOTAL_CRITICAL,
+        total_major=TOTAL_MAJOR,
+        total_minor=TOTAL_MINOR,
+        last_update=LAST_UPDATE,
+        latest_osp=latest_osp,
+        **summary,
+    )
+
+
+@app.route("/dashboard", methods=["GET", "POST"])
+def dashboard():
+    if request.method == "POST":
+        file = request.files.get("file")
+        if not file or not file.filename:
+            flash("กรุณาเลือกไฟล์ Excel ก่อน Upload", "error")
+            return redirect("/dashboard")
+
+        filename = secure_filename(file.filename)
+        if not filename.lower().endswith((".xlsx", ".xls")):
+            flash("รองรับเฉพาะไฟล์ .xlsx และ .xls", "error")
+            return redirect("/dashboard")
+
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(filepath)
+
+        try:
+            df = pd.read_excel(filepath)
+            update_global_data(df)
+            flash(f"Upload สำเร็จ: {filename} | Jobs {TOTAL_JOBS}", "success")
+        except Exception as exc:
+            flash(f"อ่านไฟล์ไม่สำเร็จ: {exc}", "error")
+        return redirect("/dashboard")
+
+    display_data = apply_group_rowspans(list(DATA)) if DATA else empty_dashboard_data()
     return render_template(
         "index.html",
         data=display_data,
         total_jobs=TOTAL_JOBS,
-        last_update=LAST_UPDATE
+        total_critical=TOTAL_CRITICAL,
+        total_major=TOTAL_MAJOR,
+        total_minor=TOTAL_MINOR,
+        last_update=LAST_UPDATE,
     )
+
+
 @app.route("/job_monitor")
 def job_monitor():
-
-    print("ROWS =", len(RAW_DATA))
-
     return render_template(
         "job_monitor.html",
         jobs=RAW_DATA,
+        total_critical=TOTAL_CRITICAL,
+        total_major=TOTAL_MAJOR,
+        total_minor=TOTAL_MINOR,
         total_jobs=TOTAL_JOBS,
-        last_update=LAST_UPDATE
+        total_sct=TOTAL_SCT,
+        total_cwt=TOTAL_CWT,
+        total_ont=TOTAL_ONT,
+        total_tlc=TOTAL_TLC,
+        last_update=LAST_UPDATE,
     )
+
+
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=5000,
-        debug=True
-    )
-     
+    load_latest_excel_into_memory()
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or os.environ.get("FLASK_DEBUG") != "1":
+        Thread(target=daily_osp_scheduler, name="daily-osp-scheduler", daemon=True).start()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
