@@ -706,5 +706,69 @@
         }
       ]
     }
+    {
+      "timestamp": "03/10/2026 18:00:00",
+      "iso_timestamp": "2026-10-03T18:00:00",
+      "date": "2026-10-03",
+      "slot": "18:00",
+      "last_update": "03/10/2026 18:00:00",
+      "totals": {
+        "critical": 0,
+        "major": 0,
+        "minor": 0,
+        "grand_total": 64
+      },
+      "subsystems": [
+        {
+          "subsystem": "EDS-OSP",
+          "critical": 4,
+          "major": 0,
+          "minor": 1,
+          "total": 5
+        },
+        {
+          "subsystem": "ETS-OSP",
+          "critical": 0,
+          "major": 0,
+          "minor": 0,
+          "total": 0
+        },
+        {
+          "subsystem": "FTTB-OSP",
+          "critical": 1,
+          "major": 0,
+          "minor": 0,
+          "total": 1
+        },
+        {
+          "subsystem": "FTTH-OSP",
+          "critical": 6,
+          "major": 0,
+          "minor": 0,
+          "total": 6
+        },
+        {
+          "subsystem": "FTTX-OSP",
+          "critical": 0,
+          "major": 0,
+          "minor": 0,
+          "total": 0
+        },
+        {
+          "subsystem": "Splitter-OSP",
+          "critical": 3,
+          "major": 15,
+          "minor": 6,
+          "total": 24
+        },
+        {
+          "subsystem": "Transmission-OSP",
+          "critical": 14,
+          "major": 12,
+          "minor": 2,
+          "total": 28
+        }
+      ]
+    }
   ]
 }
