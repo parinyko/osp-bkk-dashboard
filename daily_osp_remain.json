@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-10-02T18:00:00+07:00",
+  "updated_at": "2026-10-03T18:00:05.824634+07:00",
   "records": [
     {
       "timestamp": "28/09/2026 06:00:00",
@@ -643,109 +643,45 @@
       ]
     },
     {
-      "timestamp": "03/10/2026 06:00:00",
-      "iso_timestamp": "2026-10-03T06:00:00",
-      "date": "2026-10-03",
-      "slot": "06:00",
-      "last_update": "03/10/2026 06:00:00",
-      "totals": {
-        "critical": 0,
-        "major": 0,
-        "minor": 0,
-        "grand_total": 57
-      },
-      "subsystems": [
-        {
-          "subsystem": "EDS-OSP",
-          "critical": 0,
-          "major": 0,
-          "minor": 0,
-          "total": 8
-        },
-        {
-          "subsystem": "ETS-OSP",
-          "critical": 0,
-          "major": 0,
-          "minor": 0,
-          "total": 0
-        },
-        {
-          "subsystem": "FTTB-OSP",
-          "critical": 0,
-          "major": 0,
-          "minor": 0,
-          "total": 1
-        },
-        {
-          "subsystem": "FTTH-OSP",
-          "critical": 0,
-          "major": 0,
-          "minor": 0,
-          "total": 3
-        },
-        {
-          "subsystem": "FTTX-OSP",
-          "critical": 0,
-          "major": 0,
-          "minor": 0,
-          "total": 0
-        },
-        {
-          "subsystem": "Splitter-OSP",
-          "critical": 0,
-          "major": 0,
-          "minor": 0,
-          "total": 19
-        },
-        {
-          "subsystem": "Transmission-OSP",
-          "critical": 0,
-          "major": 0,
-          "minor": 0,
-          "total": 26
-        }
-      ]
-    }
-    {
-      "timestamp": "03/10/2026 18:00:00",
-      "iso_timestamp": "2026-10-03T18:00:00",
+      "timestamp": "03/10/2026 18:00:05",
+      "iso_timestamp": "2026-10-03T18:00:05.782193+07:00",
       "date": "2026-10-03",
       "slot": "18:00",
-      "last_update": "03/10/2026 18:00:00",
+      "last_update": "03/10/2026 12:49:07",
       "totals": {
-        "critical": 0,
-        "major": 0,
-        "minor": 0,
-        "grand_total": 64
+        "critical": 46,
+        "major": 23,
+        "minor": 14,
+        "grand_total": 83
       },
       "subsystems": [
         {
           "subsystem": "EDS-OSP",
-          "critical": 4,
-          "major": 0,
-          "minor": 1,
-          "total": 5
+          "critical": 10,
+          "major": 1,
+          "minor": 2,
+          "total": 13
         },
         {
           "subsystem": "ETS-OSP",
-          "critical": 0,
-          "major": 0,
-          "minor": 0,
-          "total": 0
-        },
-        {
-          "subsystem": "FTTB-OSP",
           "critical": 1,
           "major": 0,
           "minor": 0,
           "total": 1
         },
         {
-          "subsystem": "FTTH-OSP",
-          "critical": 6,
+          "subsystem": "FTTB-OSP",
+          "critical": 2,
           "major": 0,
           "minor": 0,
-          "total": 6
+          "total": 2
+        },
+        {
+          "subsystem": "FTTH-OSP",
+          "critical": 8,
+          "major": 0,
+          "minor": 0,
+          "total": 8
         },
         {
           "subsystem": "FTTX-OSP",
@@ -756,17 +692,31 @@
         },
         {
           "subsystem": "Splitter-OSP",
-          "critical": 3,
-          "major": 15,
-          "minor": 6,
+          "critical": 6,
+          "major": 11,
+          "minor": 7,
           "total": 24
         },
         {
           "subsystem": "Transmission-OSP",
-          "critical": 14,
-          "major": 12,
-          "minor": 2,
-          "total": 28
+          "critical": 19,
+          "major": 11,
+          "minor": 5,
+          "total": 35
+        },
+        {
+          "subsystem": "EDS SW NODE-OSP",
+          "critical": 0,
+          "major": 0,
+          "minor": 0,
+          "total": 0
+        },
+        {
+          "subsystem": "EDS IPLC-OSP",
+          "critical": 0,
+          "major": 0,
+          "minor": 0,
+          "total": 0
         }
       ]
     }
