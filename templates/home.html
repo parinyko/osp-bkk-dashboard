@@ -151,7 +151,14 @@ h1{margin:0;color:#4f8f18;font-size:28px;font-weight:900}.subtitle{margin-top:4p
 <a class="nav-card" href="/daily_osp_remain"><div><div class="icon">📈</div><div class="nav-title">Daily Job OSP Remain</div><div class="nav-desc">OSP Remain, Snapshot History และแนวโน้มรายช่วงเวลา</div></div><span class="go">เข้าสู่ Daily OSP →</span></a>
 </section>
 
-<div class="section-title">จำนวน Job ค้างตามอายุของ Job</div>
+<div class="section-title">จำนวน Job แยกตาม Zone และสถานะทีม</div>
+<section class="grid-2">
+<div class="panel zone-summary-panel"><div class="panel-head"><div class="panel-title">Zone Summary</div><div class="panel-note">จำนวน Job ตาม Zone</div></div><div class="team-cards zone-cards">{% for r in zone_summary if r.zone != 'Total' %}<div class="team-stat zone-click"><div class="label">{{ r.zone }}</div><div class="value ready">{{ r.jobs }}</div></div>{% endfor %}{% for r in zone_summary if r.zone == 'Total' %}<div class="team-stat total-zone"><div class="label">Total</div><div class="value ready">{{ r.jobs }}</div></div>{% endfor %}</div></div>
+<div class="panel"><div class="panel-head"><div class="panel-title">ทีมพร้อมทำงาน</div><div class="panel-note">รวม {{ team_summary.total }} ทีม</div></div><div class="team-cards"><div class="team-stat"><div class="label">Working</div><div class="value working">{{ team_summary.working }}</div></div><div class="team-stat"><div class="label">On-site</div><div class="value onsite">{{ team_summary.onsite }}</div></div><div class="team-stat"><div class="label">Departed</div><div class="value departed">{{ team_summary.departed }}</div></div><div class="team-stat"><div class="label">ว่าง</div><div class="value free">{{ team_summary.free }}</div></div><div class="team-stat"><div class="label">ทีมขาด</div><div class="value missing">{{ team_summary.missing }}</div></div><div class="team-stat"><div class="label">ทีมเลิกดึก</div><div class="value late">{{ team_summary.late }}</div></div><div class="team-stat"><div class="label">พร้อมทำงาน</div><div class="value ready ready-total">
+    {{ team_summary.ready }} / {{ team_summary.total }}
+</div></div></div><div class="legend"><span><i class="dot work"></i>Working</span><span><i class="dot onsite"></i>On-site</span><span><i class="dot departed"></i>Departed</span><span><i class="dot free"></i>ว่าง</span><span><i class="dot missing"></i>ทีมขาด</span><span><i class="dot late"></i>ทีมเลิกดึก</span></div><div class="team-detail">Remark ที่มีคำว่า <b>ลา / ไม่มีทีม / รถเสีย</b> จะถูกนับเป็น “ทีมขาด” โดยไม่ขึ้นกับ Job Count · Remark <b>Available on HH:MM</b> จะเป็น “ทีมเลิกดึก” จนถึงเวลาที่กำหนด แล้วเปลี่ยนกลับเป็นพร้อมทำงานอัตโนมัติ</div></div>
+</section>
+
 <section class="panel osp-age-panel">
   <div class="panel-head">
     <div class="panel-title">OSP Job Aging Summary</div>
@@ -252,13 +259,7 @@ h1{margin:0;color:#4f8f18;font-size:28px;font-weight:900}.subtitle{margin-top:4p
   <div class="osp-age-note">Transmission-OSP แยกจาก Job Title: <b>Optic LOS</b> = นอกเหนือจาก 4 รายการ · <b>BBU</b> = Node B Down · <b>RRU</b> = RRU · <b>High loss</b> = Highloss / High loss · <b>ร้องเรียน</b> = ร้องเรียน</div>
 </section>
 
-<div class="section-title">จำนวน Job แยกตาม Zone และสถานะทีม</div>
-<section class="grid-2">
-<div class="panel zone-summary-panel"><div class="panel-head"><div class="panel-title">Zone Summary</div><div class="panel-note">จำนวน Job ตาม Zone</div></div><div class="team-cards zone-cards">{% for r in zone_summary if r.zone != 'Total' %}<div class="team-stat zone-click"><div class="label">{{ r.zone }}</div><div class="value ready">{{ r.jobs }}</div></div>{% endfor %}{% for r in zone_summary if r.zone == 'Total' %}<div class="team-stat total-zone"><div class="label">Total</div><div class="value ready">{{ r.jobs }}</div></div>{% endfor %}</div></div>
-<div class="panel"><div class="panel-head"><div class="panel-title">ทีมพร้อมทำงาน</div><div class="panel-note">รวม {{ team_summary.total }} ทีม</div></div><div class="team-cards"><div class="team-stat"><div class="label">Working</div><div class="value working">{{ team_summary.working }}</div></div><div class="team-stat"><div class="label">On-site</div><div class="value onsite">{{ team_summary.onsite }}</div></div><div class="team-stat"><div class="label">Departed</div><div class="value departed">{{ team_summary.departed }}</div></div><div class="team-stat"><div class="label">ว่าง</div><div class="value free">{{ team_summary.free }}</div></div><div class="team-stat"><div class="label">ทีมขาด</div><div class="value missing">{{ team_summary.missing }}</div></div><div class="team-stat"><div class="label">ทีมเลิกดึก</div><div class="value late">{{ team_summary.late }}</div></div><div class="team-stat"><div class="label">พร้อมทำงาน</div><div class="value ready ready-total">
-    {{ team_summary.ready }} / {{ team_summary.total }}
-</div></div></div><div class="legend"><span><i class="dot work"></i>Working</span><span><i class="dot onsite"></i>On-site</span><span><i class="dot departed"></i>Departed</span><span><i class="dot free"></i>ว่าง</span><span><i class="dot missing"></i>ทีมขาด</span><span><i class="dot late"></i>ทีมเลิกดึก</span></div><div class="team-detail">Remark ที่มีคำว่า <b>ลา / ไม่มีทีม / รถเสีย</b> จะถูกนับเป็น “ทีมขาด” โดยไม่ขึ้นกับ Job Count · Remark <b>Available on HH:MM</b> จะเป็น “ทีมเลิกดึก” จนถึงเวลาที่กำหนด แล้วเปลี่ยนกลับเป็นพร้อมทำงานอัตโนมัติ</div></div>
-</section>
+
 
 <div class="section-title">สรุป OSP ล่าสุด</div>
 <section class="osp">{% if latest_osp %}<div class="osp-head"><div class="osp-title">Snapshot {{ latest_osp.get('slot','-') }}</div><div class="osp-meta">{{ latest_osp.get('timestamp','-') }}</div></div><div class="osp-grid"><div class="osp-item">Critical<b>{{ latest_osp.get('totals',{}).get('critical',0) }}</b></div><div class="osp-item">Major<b>{{ latest_osp.get('totals',{}).get('major',0) }}</b></div><div class="osp-item">Minor<b>{{ latest_osp.get('totals',{}).get('minor',0) }}</b></div><div class="osp-item">Grand Total<b>{{ latest_osp.get('totals',{}).get('grand_total',0) }}</b></div></div>{% else %}<div class="empty">ยังไม่มีข้อมูล Snapshot Daily OSP</div>{% endif %}</section>
