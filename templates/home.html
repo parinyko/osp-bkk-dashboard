@@ -46,6 +46,26 @@ h1{margin:0;color:#4f8f18;font-size:28px;font-weight:900}.subtitle{margin-top:4p
 .zone-cards .team-stat:nth-child(1){background:#eaf4ff;border-color:#9ec5e8}.zone-cards .team-stat:nth-child(2){background:#eaf8f0;border-color:#9ed2b2}.zone-cards .team-stat:nth-child(3){background:#fff4df;border-color:#e5bf72}.zone-cards .team-stat:nth-child(4){background:#f2ecff;border-color:#b9a2e6}.zone-cards .total-zone{background:#eef5e8;border-color:#a8c98d}.osp-item:nth-child(1){background:#fff0f0;border-color:#efb0b0}.osp-item:nth-child(1) b{color:#d64545}.osp-item:nth-child(2){background:#fff4e5;border-color:#edc27a}.osp-item:nth-child(2) b{color:#d88919}.osp-item:nth-child(3){background:#fffbe5;border-color:#e3d26a}.osp-item:nth-child(3) b{color:#b39a00}.osp-item:nth-child(4){background:#eaf5e8;border-color:#a8c98d}.osp-item:nth-child(4) b{color:#4e8f2d}
 @media(max-width:600px){body{padding:7px}.header{padding:12px}.header-row{align-items:flex-start;flex-direction:column}h1{font-size:23px}.update{white-space:normal}.cards{gap:7px}.card{padding:9px}.card .value{font-size:23px}.nav-card{padding:10px}.go{display:none}.osp-grid{grid-template-columns:repeat(2,1fr)}.panel-head{align-items:flex-start;flex-direction:column;gap:3px}}
 
+
+/* =========================
+   SUB SYSTEM SUMMARY
+========================= */
+.subsystem-chart-panel{overflow:hidden}
+.subsystem-filterbar{display:flex;gap:7px;flex-wrap:wrap;padding:9px 11px;background:#fbfdf9;border-bottom:1px solid #e1eadc}
+.subsystem-filter-btn{border:1px solid #cbdcc4;background:#fff;color:#42633a;border-radius:999px;padding:5px 11px;font-size:11px;font-weight:900;cursor:pointer}
+.subsystem-filter-btn:hover,.subsystem-filter-btn.active{background:#69a91f;color:#fff;border-color:#69a91f}
+.subsystem-chart{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:10px}
+.subsystem-group{background:#fbfdf9;border:1px solid #dce8d7;border-radius:10px;padding:9px 11px}
+.subsystem-name{font-weight:900;color:#355e27;margin-bottom:7px;display:flex;justify-content:space-between;gap:10px}
+.subsystem-total{font-size:11px;font-weight:800;color:#6e7b6b}
+.bars{display:grid;gap:5px}
+.bar-row{display:grid;grid-template-columns:62px minmax(80px,1fr) 32px;align-items:center;gap:7px}
+.bar-label{font-size:11px;font-weight:800}.critical-label{color:#c62828}.major-label{color:#d97706}.minor-label{color:#9a8b00}
+.bar-track{height:17px;background:#edf3e9;border-radius:999px;overflow:hidden}
+.bar-fill{height:100%;border-radius:999px;min-width:0}.critical-fill{background:#d9534f}.major-fill{background:#f0a22e}.minor-fill{background:#e0c341}
+.bar-value{text-align:right;font-size:12px;color:#35412f}
+@media(max-width:700px){.subsystem-chart{grid-template-columns:1fr;padding:8px}.subsystem-filterbar{overflow-x:auto;flex-wrap:nowrap}.subsystem-filter-btn{white-space:nowrap}.bar-row{grid-template-columns:58px minmax(60px,1fr) 30px}}
+
 /* =========================
    OSP AGE SUMMARY TABLE
 ========================= */
@@ -129,28 +149,6 @@ h1{margin:0;color:#4f8f18;font-size:28px;font-weight:900}.subtitle{margin-top:4p
 <a class="nav-card" href="/dashboard"><div><div class="icon">📊</div><div class="nav-title">Job Dashboard</div><div class="nav-desc">ภาพรวมทีมงาน User, Job Count, Status, Contact และ Remark</div></div><span class="go">เข้าสู่ Dashboard →</span></a>
 <a class="nav-card" href="/job_monitor"><div><div class="icon">📋</div><div class="nav-title">Job Monitor</div><div class="nav-desc">รายการ Job และตัวกรอง Sub System, Priority และ Zone</div></div><span class="go">เข้าสู่ Job Monitor →</span></a>
 <a class="nav-card" href="/daily_osp_remain"><div><div class="icon">📈</div><div class="nav-title">Daily Job OSP Remain</div><div class="nav-desc">OSP Remain, Snapshot History และแนวโน้มรายช่วงเวลา</div></div><span class="go">เข้าสู่ Daily OSP →</span></a>
-</section>
-
-<div class="section-title">จำนวน Job แยกตาม Sub System และ Priority</div>
-<section class="panel subsystem-chart-panel">
-<div class="panel-head"><div class="panel-title">Sub System Summary</div><div class="panel-note">แสดงเฉพาะ Priority ที่มีจำนวน Job มากกว่า 0</div></div>
-<div class="subsystem-chart">
-{% for r in subsystem_summary %}
-  {% if r.total > 0 %}
-  <div class="subsystem-group">
-    <div class="subsystem-name">{{ r.subsystem }} <span class="subsystem-total">Total {{ '' if r.total == 0 else r.total }}</span></div>
-    <div class="bars">
-      {% if r.critical > 0 %}<div class="bar-row"><span class="bar-label critical-label">Critical</span><div class="bar-track"><div class="bar-fill critical-fill" data-value="{{ r.critical }}"></div></div><b class="bar-value">{{ r.critical }}</b></div>{% endif %}
-      {% if r.major > 0 %}<div class="bar-row"><span class="bar-label major-label">Major</span><div class="bar-track"><div class="bar-fill major-fill" data-value="{{ r.major }}"></div></div><b class="bar-value">{{ r.major }}</b></div>{% endif %}
-      {% if r.minor > 0 %}<div class="bar-row"><span class="bar-label minor-label">Minor</span><div class="bar-track"><div class="bar-fill minor-fill" data-value="{{ r.minor }}"></div></div><b class="bar-value">{{ r.minor }}</b></div>{% endif %}
-    </div>
-  </div>
-  {% endif %}
-{% endfor %}
-{% if not subsystem_summary|selectattr('total','gt',0)|list %}
-<div class="empty">ขณะนี้ไม่มี Job ที่มีจำนวนมากกว่า 0</div>
-{% endif %}
-</div>
 </section>
 
 <div class="section-title">จำนวน Job ค้างตามอายุของ Job</div>
@@ -277,6 +275,28 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 </script>
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+  document.querySelectorAll(".subsystem-group").forEach(function(group){
+    const vals=[...group.querySelectorAll(".bar-fill")].map(x=>Number(x.dataset.value||0));
+    const max=Math.max(...vals,1);
+    group.querySelectorAll(".bar-fill").forEach(function(el){
+      el.style.width=(Number(el.dataset.value||0)/max*100)+"%";
+    });
+  });
+  document.querySelectorAll(".subsystem-filter-btn").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      document.querySelectorAll(".subsystem-filter-btn").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      const key=btn.dataset.subsystem;
+      document.querySelectorAll(".subsystem-group").forEach(function(g){
+        g.style.display=(key==="all" || g.dataset.subsystem===key) ? "" : "none";
+      });
+    });
+  });
+});
+</script>
+
 </body>
 </html>
 
