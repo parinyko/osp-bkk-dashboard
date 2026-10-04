@@ -1020,13 +1020,18 @@ def build_home_summary():
 
     team_rows = build_dashboard_data(job_df) if not job_df.empty else empty_dashboard_data()
     missing_keywords = ("ลา", "ไม่มีทีม", "รถเสีย")
-    working = free = missing = late = 0
+    working = free = missing = late = onsite = departed = 0
     team_status_rows = []
     now = datetime.now(ZoneInfo("Asia/Bangkok"))
 
     for row in team_rows:
         remark = clean_text(row.get("remark", ""))
         remark_cf = remark.casefold()
+        status_text_cf = clean_text(row.get("status_text", "")).casefold()
+        if "on-site" in status_text_cf or "onsite" in status_text_cf:
+            onsite += 1
+        if "departed" in status_text_cf:
+            departed += 1
         if any(word in remark_cf for word in missing_keywords):
             status = "ทีมขาด"
             missing += 1
@@ -1050,7 +1055,8 @@ def build_home_summary():
         "zone_summary": zone_summary,
         "team_summary": {
             "working": working, "free": free, "missing": missing,
-            "late": late, "ready": working + free, "total": total_teams,
+            "late": late, "onsite": onsite, "departed": departed,
+            "ready": working + free, "total": total_teams,
         },
     }
 
